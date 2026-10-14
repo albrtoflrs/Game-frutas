@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fruit Kart Pro: Turbo Edition</title>
+<style>
+  :root {
+    --primary: #ff3366;
+    --accent: #ffcc00;
+    --dark: #14141f;
+    --panel: rgba(25, 25, 40, 0.88);
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
+  }
+  body, html {
+    width: 100%;
+    height: 100%;
+    background: var(--dark);
+    color: #fff;
+    overflow: hidden;
+  }
+  #gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Pantallas de Menú */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, #252538 0%, #0d0d14 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 18px;
+    overflow-y: auto;
+    z-index: 20;
+  }
+  .hidden { display: none !important; }
+
+  h1 {
+    font-size: 1.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #ff3366, #ffcc00, #33ccff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .subtitle {
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .section-title {
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin: 10px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+
+  .grid-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 520px;
+  }
+  .grid-maps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+    max-width: 520px;
+  }
+  .card {
+    background: var(--panel);
+    border: 2px solid #33334d;
+    border-radius: 12px;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    text-align: center;
+  }
+  .card.selected {
+    border-color: var(--accent);
+    background: rgba(255, 204, 0, 0.12);
+    transform: scale(1.02);
+  }
+  .card-icon { font-size: 2rem; margin-bottom: 4px; }
+  .card-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+  .card-desc { font-size: 0.72rem; color: #bbb; line-height: 1.25; }
+
+  .btn-start {
+    margin-top: 16px;
+    background: linear-gradient(135deg, #ff3366, #ff7733);
+    border: none;
+    color: white;
+    font-weight: 800;
+    font-size: 1.1rem;
+    padding: 14px 36px;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(255, 51, 102, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .btn-start:active { transform: scale(0.96); }
+
+  /* HUD de Carrera */
+  #hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hud-box {
+    background: rgba(15, 15, 25, 0.78);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 14px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+  }
+  .pos-badge {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--accent);
+  }
+  .lap-text { font-size: 0.85rem; color: #ddd; }
+  .status-banner {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #00ffcc;
+    margin-top: 3px;
+    min-height: 1.1em;
+  }
+  .item-slot {
+    width: 62px;
+    height: 62px;
+    border-radius: 14px;
+    background: rgba(20,20,35,0.85);
+    border: 3px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.9rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+  .item-label {
+    font-size: 0.6rem;
+    color: #fff;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  /* Controles Táctiles (Móvil) */
+  #touchControls {
+    position: absolute;
+    bottom: 16px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 12;
+    pointer-events: none;
+  }
+  .ctrl-group {
+    display: flex;
+    gap: 12px;
+    pointer-events: auto;
+  }
+  .ctrl-btn {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+  }
+  .ctrl-btn:active, .ctrl-btn.active {
+    background: rgba(255, 204, 0, 0.45);
+    border-color: var(--accent);
+    transform: scale(0.93);
+  }
+  .btn-drift {
+    background: rgba(51, 204, 255, 0.22);
+    border-color: #33ccff;
+    font-size: 0.85rem;
+  }
+  .btn-item {
+    background: rgba(255, 51, 102, 0.32);
+    border-color: #ff3366;
+    font-size: 0.85rem;
+  }
+
+  /* Tabla de Resultados */
+  .results-list {
+    width: 100%;
+    max-width: 420px;
+    margin: 15px 0;
+  }
+  .res-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: var(--panel);
+    border-radius: 10px;
+    border-left: 5px solid var(--accent);
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<!-- MENÚ PRINCIPAL -->
+<div id="menuOverlay" class="overlay">
+  <h1>🍓 Fruit Kart Pro</h1>
+  <p class="subtitle">Carreras Tácticas vs Pro Bots • Aceleración Automática</p>
+
+  <div class="section-title">1. Elige tu Auto-Fruta</div>
+  <div class="grid-cards" id="racerGrid"></div>
+
+  <div class="section-title">2. Selecciona el Circuito (3 Vueltas)</div>
+  <div class="grid-maps" id="mapGrid"></div>
+
+  <button class="btn-start" id="startBtn">¡Correr Ahora!</button>
+</div>
+
+<!-- PANTALLA DE RESULTADOS -->
+<div id="resultOverlay" class="overlay hidden">
+  <h1 id="resultTitle">¡Carrera Terminada!</h1>
+  <p class="subtitle" id="resultSubtitle">Resultados Oficiales del Circuito</p>
+  <div class="results-list" id="resultsList"></div>
+  <button class="btn-start" id="restartBtn">Volver al Garaje</button>
+</div>
+
+<!-- HUD EN CARRERA -->
+<div id="hud" class="hidden">
+  <div class="hud-box">
+    <div>Posición: <span class="pos-badge" id="posDisplay">1/4</span></div>
+    <div class="lap-text" id="lapDisplay">Vuelta: 1 / 3</div>
+    <div class="status-banner" id="statusDisplay"></div>
+  </div>
+  <div class="item-slot" id="itemSlot">
+    <span id="itemIcon">➖</span>
+    <span class="item-label" id="itemLabel">Vacío</span>
+  </div>
+</div>
+
+<!-- CONTROLES MÓVILES -->
+<div id="touchControls" class="hidden">
+  <div class="ctrl-group">
+    <div class="ctrl-btn" id="btnLeft">◀</div>
+    <div class="ctrl-btn" id="btnRight">▶</div>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-btn btn-drift" id="btnDrift">DRIFT</div>
+    <div class="ctrl-btn btn-item" id="btnItem">ITEM</div>
+  </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN DE FRUTAS, MAPAS Y MEJORAS
+   ========================================================= */
+const FRUITS = [
+  {
+    id: 'strawberry',
+    name: 'Fresa Turbo',
+    emoji: '🍓',
+    color: '#ff2a55',
+    secondary: '#2ecc71',
+    maxSpeed: 6.7,
+    accel: 0.14,
+    handling: 0.055,
+    weight: 1.0,
+    offroadPass: false,
+    desc: 'Alta velocidad punta y salida explosiva.'
+  },
+  {
+    id: 'banana',
+    name: 'Banana Drift',
+    emoji: '🍌',
+    color: '#f1c40f',
+    secondary: '#e67e22',
+    maxSpeed: 6.3,
+    accel: 0.13,
+    handling: 0.072,
+    weight: 0.9,
+    offroadPass: false,
+    desc: 'Giro cerrado y carga de Mini-Turbo rápida.'
+  },
+  {
+    id: 'watermelon',
+    name: 'Sandía Tanque',
+    emoji: '🍉',
+    color: '#27ae60',
+    secondary: '#e74c3c',
+    maxSpeed: 6.45,
+    accel: 0.11,
+    handling: 0.050,
+    weight: 1.6,
+    offroadPass: false,
+    desc: 'Pesada: empuja rivales y reduce aturdimientos.'
+  },
+  {
+    id: 'pineapple',
+    name: 'Piña Rally',
+    emoji: '🍍',
+    color: '#f39c12',
+    secondary: '#2ecc71',
+    maxSpeed: 6.35,
+    accel: 0.13,
+    handling: 0.060,
+    weight: 1.15,
+    offroadPass: true,
+    desc: 'Todo terreno: no pierde velocidad fuera de pista.'
+  }
+];
+
+const MAPS = [
+  {
+    id: 'tropical',
+    name: 'Copa Tropical',
+    emoji: '🌴',
+    bgColor: '#1b4d3e',
+    roadColor: '#3d3d4e',
+    borderColor: '#f1c40f',
+    grip: 0.96,
+    trackWidth: 185,
+    desc: 'Asfalto rápido con curvas de miel.',
+    waypoints: [
+      {x: 0, y: -700}, {x: 680, y: -620}, {x: 920, y: -100},
+      {x: 680, y: 520}, {x: 120, y: 680}, {x: -550, y: 580},
+      {x: -880, y: 80}, {x: -680, y: -550}
+    ]
+  },
+  {
+    id: 'glacier',
+    name: 'Glaciar Cítrico',
+    emoji: '❄️',
+    bgColor: '#13384c',
+    roadColor: '#76a5af',
+    borderColor: '#e0f7fa',
+    grip: 0.89,
+    trackWidth: 195,
+    desc: 'Pista resbaladiza con charcos helados.',
+    waypoints: [
+      {x: 0, y: -820}, {x: 820, y: -720}, {x: 980, y: 0},
+      {x: 420, y: 320}, {x: 820, y: 760}, {x: -100, y: 860},
+      {x: -850, y: 600}, {x: -520, y: 0}, {x: -850, y: -620}
+    ]
+  },
+  {
+    id: 'volcano',
+    name: 'Volcán Picante',
+    emoji: '🌋',
+    bgColor: '#2c1111',
+    roadColor: '#2b2626',
+    borderColor: '#ff4500',
+    grip: 0.95,
+    trackWidth: 170,
+    desc: 'Curvas técnicas y cuchillas de cocina.',
+    waypoints: [
+      {x: 0, y: -780}, {x: 750, y: -750}, {x: 520, y: -150},
+      {x: 980, y: 380}, {x: 420, y: 820}, {x: -380, y: 780},
+      {x: -950, y: 300}, {x: -480, y: -220}, {x: -820, y: -700}
+    ]
+  }
+];
+
+const ITEMS = [
+  { id: 'nitro', name: 'Jugo Nitro', icon: '⚡' },
+  { id: 'shield', name: 'Coco Escudo', icon: '🥥' },
+  { id: 'chili', name: 'Chile Misil', icon: '🌶️' },
+  { id: 'peel', name: 'Cáscara', icon: '🍌' }
+];
+
+/* =========================================================
+   ESTADO DEL JUEGO Y SELECCIÓN
+   ========================================================= */
+let selectedFruitIndex = 0;
+let selectedMapIndex = 0;
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState = 'MENU'; // MENU, RACING, RESULTS
+let currentMap = MAPS[0];
+let trackPoints = []; // Puntos densos interpolados
+let karts = [];
+let playerKart = null;
+let itemBoxes = [];
+let obstacles = [];
+let projectiles = [];
+let particles = [];
+let finishOrder = [];
+const TOTAL_LAPS = 3;
+
+// Controles
+const input = { left: false, right: false, drift: false };
+
+/* =========================================================
+   INICIALIZACIÓN DE INTERFAZ
+   ========================================================= */
+function initMenuUI() {
+  const racerGrid = document.getElementById('racerGrid');
+  racerGrid.innerHTML = '';
+  FRUITS.forEach((f, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card' + (idx === selectedFruitIndex ? ' selected' : '');
+    card.innerHTML = `
+      <div class="card-icon">${f.emoji}</div>
+      <div class="card-name">${f.name}</div>
+      <div class="card-desc">${f.desc}</div>
+    `;
+    card.onclick = () => {
+      selectedFruitIndex = idx;
+      initMenuUI();
+    };
+    racerGrid.appendChild(card);
+  });
+
+  const mapGrid = document.getElementById('mapGrid');
+  mapGrid.innerHTML = '';
+  MAPS.forEach((m, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card' + (idx === selectedMapIndex ? ' selected' : '');
+    card.innerHTML = `
+      <div class="card-icon">${m.emoji}</div>
+      <div class="card-name">${m.name}</div>
+      <div class="card-desc">${m.desc}</div>
+    `;
+    card.onclick = () => {
+      selectedMapIndex = idx;
+      initMenuUI();
+    };
+    mapGrid.appendChild(card);
+  });
+}
+
+initMenuUI();
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* =========================================================
+   GENERACIÓN MATEMÁTICA DEL CIRCUITO Y OBSTÁCULOS
+   ========================================================= */
+function buildTrackGeometry(map) {
+  trackPoints = [];
+  const wps = map.waypoints;
+  const stepsPerSegment = 30;
+
+  // Interpolación Catmull-Rom cerrada para curvas suaves
+  for (let i = 0; i < wps.length; i++) {
+    const p0 = wps[(i - 1 + wps.length) % wps.length];
+    const p1 = wps[i];
+    const p2 = wps[(i + 1) % wps.length];
+    const p3 = wps[(i + 2) % wps.length];
+
+    for (let s = 0; s < stepsPerSegment; s++) {
+      const t = s / stepsPerSegment;
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const x = 0.5 * (
+        (2 * p1.x) +
+        (-p0.x + p2.x) * t +
+        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
+      );
+      const y = 0.5 * (
+        (2 * p1.y) +
+        (-p0.y + p2.y) * t +
+        (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+        (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
+      );
+      trackPoints.push({ x, y });
+    }
+  }
+
+  // Generar Cajas de Mejoras (Items) a lo largo de la pista
+  itemBoxes = [];
+  const boxIntervals = [35, 95, 155, 210];
+  boxIntervals.forEach(idx => {
+    if (idx < trackPoints.length) {
+      const pt = trackPoints[idx];
+      const next = trackPoints[(idx + 1) % trackPoints.length];
+      const angle = Math.atan2(next.y - pt.y, next.x - pt.x) + Math.PI / 2;
+      [-45, 0, 45].forEach(offset => {
+        itemBoxes.push({
+          x: pt.x + Math.cos(angle) * offset,
+          y: pt.y + Math.sin(angle) * offset,
+          active: true,
+          respawnTimer: 0
+        });
+      });
+    }
+  });
+
+  // Generar Obstáculos del Mapa (Miel, Hielo y Cuchillas móviles)
+  obstacles = [];
+  for (let i = 20; i < trackPoints.length; i += 28) {
+    const pt = trackPoints[i];
+    const next = trackPoints[(i + 1) % trackPoints.length];
+    const perp = Math.atan2(next.y - pt.y, next.x - pt.x) + Math.PI / 2;
+
+    if (i % 56 === 20) {
+      // Cuchilla giratoria que patrulla el ancho de la pista
+      obstacles.push({
+        type: 'blade',
+        baseX: pt.x,
+        baseY: pt.y,
+        x: pt.x,
+        y: pt.y,
+        perpAngle: perp,
+        phase: i,
+        radius: 24
+      });
+    } else {
+      // Mancha de Miel o Charco Helado
+      const offset = (Math.random() - 0.5) * (map.trackWidth * 0.55);
+      obstacles.push({
+        type: map.id === 'glacier' ? 'ice' : 'honey',
+        x: pt.x + Math.cos(perp) * offset,
+        y: pt.y + Math.sin(perp) * offset,
+        radius: 32
+      });
+    }
+  }
+}
+
+/* =========================================================
+   CLASE KART (JUGADOR + PRO BOTS)
+   ========================================================= */
+function createKart(fruit, isBot, gridIndex) {
+  const startPt = trackPoints[0];
+  const nextPt = trackPoints[2];
+  const trackAngle = Math.atan2(nextPt.y - startPt.y, nextPt.x - startPt.x);
+  const perp = trackAngle + Math.PI / 2;
+
+  const lateralOffset = (gridIndex % 2 === 0 ? -36 : 36);
+  const backOffset = Math.floor(gridIndex / 2) * -48;
+
+  return {
+    fruit,
+    isBot,
+    name: isBot ? `[PRO] ${fruit.name}` : `Tú (${fruit.name})`,
+    x: startPt.x + Math.cos(trackAngle) * backOffset + Math.cos(perp) * lateralOffset,
+    y: startPt.y + Math.sin(trackAngle) * backOffset + Math.sin(perp) * lateralOffset,
+    vx: 0,
+    vy: 0,
+    speed: 0,
+    angle: trackAngle,
+    driftCharge: 0,
+    isDrifting: false,
+    boostTimer: 0,
+    spinTimer: 0,
+    shield: false,
+    heldItem: null,
+    itemCooldown: 0,
+    slipstreamTimer: 0,
+    waypointIdx: 1,
+    lap: 1,
+    totalProgress: 0,
+    finished: false,
+    finishTime: 0,
+    aiLineOffset: (Math.random() - 0.5) * 65
+  };
+}
+
+function startRace() {
+  currentMap = MAPS[selectedMapIndex];
+  buildTrackGeometry(currentMap);
+
+  karts = [];
+  projectiles = [];
+  particles = [];
+  finishOrder = [];
+
+  // Crear Jugador
+  const playerFruit = FRUITS[selectedFruitIndex];
+  playerKart = createKart(playerFruit, false, 0);
+  karts.push(playerKart);
+
+  // Crear 3 Pro Bots con las otras frutas
+  let gridPos = 1;
+  FRUITS.forEach((f, idx) => {
+    if (idx !== selectedFruitIndex) {
+      karts.push(createKart(f, true, gridPos++));
+    }
+  });
+
+  document.getElementById('menuOverlay').classList.add('hidden');
+  document.getElementById('resultOverlay').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('touchControls').classList.remove('hidden');
+  updateItemUI();
+
+  gameState = 'RACING';
+}
+
+/* =========================================================
+   SISTEMA DE MEJORAS (ITEMS)
+   ========================================================= */
+function updateItemUI() {
+  const iconEl = document.getElementById('itemIcon');
+  const labelEl = document.getElementById('itemLabel');
+  if (!playerKart || !playerKart.heldItem) {
+    iconEl.textContent = '➖';
+    labelEl.textContent = 'Vacío';
+  } else {
+    iconEl.textContent = playerKart.heldItem.icon;
+    labelEl.textContent = playerKart.heldItem.name;
+  }
+}
+
+function useKartItem(k) {
+  if (!k.heldItem || k.spinTimer > 0) return;
+  const item = k.heldItem;
+  k.heldItem = null;
+  if (!k.isBot) updateItemUI();
+
+  if (item.id === 'nitro') {
+    k.boostTimer = 85;
+    spawnParticles(k.x, k.y, '#00ffcc', 16);
+  } else if (item.id === 'shield') {
+    k.shield = true;
+    spawnParticles(k.x, k.y, '#ffffff', 12);
+  } else if (item.id === 'chili') {
+    projectiles.push({
+      type: 'chili',
+      owner: k,
+      x: k.x + Math.cos(k.angle) * 32,
+      y: k.y + Math.sin(k.angle) * 32,
+      vx: Math.cos(k.angle) * 11.5,
+      vy: Math.sin(k.angle) * 11.5,
+      life: 140,
+      radius: 14
+    });
+  } else if (item.id === 'peel') {
+    obstacles.push({
+      type: 'peel',
+      x: k.x - Math.cos(k.angle) * 36,
+      y: k.y - Math.sin(k.angle) * 36,
+      radius: 18
+    });
+  }
+}
+
+/* =========================================================
+   FÍSICA, CONTROLES E INTELIGENCIA ARTIFICIAL PRO
+   ========================================================= */
+function normalizeAngle(a) {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
+
+function getClosestTrackDistance(x, y) {
+  let minDist = Infinity;
+  let closestIdx = 0;
+  for (let i = 0; i < trackPoints.length; i++) {
+    const dx = x - trackPoints[i].x;
+    const dy = y - trackPoints[i].y;
+    const d = dx * dx + dy * dy;
+    if (d < minDist) {
+      minDist = d;
+      closestIdx = i;
+    }
+  }
+  return { dist: Math.sqrt(minDist), index: closestIdx };
+}
+
+function updateKart(k, dt) {
+  if (k.finished) return;
+
+  // Seguimiento de Progreso por Waypoints de la Pista
+  const targetWP = trackPoints[k.waypointIdx];
+  const distToWP = Math.hypot(targetWP.x - k.x, targetWP.y - k.y);
+  if (distToWP < currentMap.trackWidth * 0.85) {
+    const prevWP = k.waypointIdx;
+    k.waypointIdx = (k.waypointIdx + 1) % trackPoints.length;
+    if (prevWP === trackPoints.length - 1 && k.waypointIdx === 0) {
+      k.lap++;
+      if (k.lap > TOTAL_LAPS) {
+        k.finished = true;
+        finishOrder.push(k);
+        if (!k.isBot || finishOrder.length === karts.length) {
+          endRace();
+        }
+        return;
+      }
+    }
+  }
+  k.totalProgress = (k.lap - 1) * trackPoints.length + k.waypointIdx;
+
+  // Estado de Giro por Impacto (Aturdimiento)
+  if (k.spinTimer > 0) {
+    k.spinTimer--;
+    k.angle += 0.32;
+    k.speed *= 0.92;
+    k.x += Math.cos(k.angle) * k.speed * 0.3;
+    k.y += Math.sin(k.angle) * k.speed * 0.3;
+    return;
+  }
+
+  let steerInput = 0;
+  let wantDrift = false;
+
+  if (!k.isBot) {
+    // Control del Jugador
+    if (input.left) steerInput -= 1;
+    if (input.right) steerInput += 1;
+    wantDrift = input.drift && Math.abs(steerInput) > 0;
+  } else {
+    // IA de Pro Bots
+    const lookAheadIdx = (k.waypointIdx + 6) % trackPoints.length;
+    const wp = trackPoints[lookAheadIdx];
+    const nextWp = trackPoints[(lookAheadIdx + 1) % trackPoints.length];
+    const perp = Math.atan2(nextWp.y - wp.y, nextWp.x - wp.x) + Math.PI / 2;
+
+    // Evasión de obstáculos cercanos
+    let avoidOffset = k.aiLineOffset;
+    obstacles.forEach(obs => {
+      const d = Math.hypot(obs.x - k.x, obs.y - k.y);
+      if (d < 140) {
+        avoidOffset = -avoidOffset;
+      }
+    });
+
+    const aimX = wp.x + Math.cos(perp) * avoidOffset;
+    const aimY = wp.y + Math.sin(perp) * avoidOffset;
+    const desiredAngle = Math.atan2(aimY - k.y, aimX - k.x);
+    const diff = normalizeAngle(desiredAngle - k.angle);
+
+    if (Math.abs(diff) > 0.06) {
+      steerInput = diff > 0 ? 1 : -1;
+    }
+    if (Math.abs(diff) > 0.45 && k.speed > 4.5) {
+      wantDrift = true;
+    }
+
+    // Uso inteligente de mejoras por el Bot
+    if (k.heldItem) {
+      k.itemCooldown--;
+      if (k.itemCooldown <= 0) {
+        useKartItem(k);
+      }
+    }
+  }
+
+  // Gestión de Derrape (Drift) y Mini-Turbo
+  if (wantDrift && k.speed > 3.8) {
+    k.isDrifting = true;
+    k.driftCharge += 1;
+    if (k.driftCharge % 4 === 0) {
+      const sparkColor = k.driftCharge > 45 ? '#ff9900' : '#00ccff';
+      spawnParticles(k.x - Math.cos(k.angle) * 18, k.y - Math.sin(k.angle) * 18, sparkColor, 2);
+    }
+  } else {
+    if (k.isDrifting && k.driftCharge > 25) {
+      k.boostTimer = Math.min(k.boostTimer + (k.driftCharge > 45 ? 55 : 30), 90);
+      spawnParticles(k.x, k.y, '#ffcc00', 12);
+    }
+    k.isDrifting = false;
+    k.driftCharge = 0;
+  }
+
+  // Giro
+  const turnRate = k.fruit.handling * (k.isDrifting ? 1.35 : 1.0);
+  k.angle += steerInput * turnRate;
+
+  // Detectar si está dentro o fuera de la pista
+  const trackInfo = getClosestTrackDistance(k.x, k.y);
+  const isOffroad = trackInfo.dist > currentMap.trackWidth * 0.52;
+
+  // Mecánica de Rebufo (Slipstream)
+  let inSlipstream = false;
+  karts.forEach(other => {
+    if (other !== k && !other.finished) {
+      const dx = other.x - k.x;
+      const dy = other.y - k.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 35 && dist < 165) {
+        const angleToOther = Math.atan2(dy, dx);
+        if (Math.abs(normalizeAngle(angleToOther - k.angle)) < 0.35) {
+          inSlipstream = true;
+        }
+      }
+    }
+  });
+
+  if (inSlipstream) {
+    k.slipstreamTimer = Math.min(k.slipstreamTimer + 1, 90);
+  } else {
+    k.slipstreamTimer = Math.max(k.slipstreamTimer - 2, 0);
+  }
+
+  // Velocidad Objetivo y Rubberbanding de Bots Pro
+  let targetMax = k.fruit.maxSpeed;
+  if (k.isBot && playerKart) {
+    const progressDiff = playerKart.totalProgress - k.totalProgress;
+    if (progressDiff > 18) targetMax *= 1.075; // El bot aprieta el paso si se queda atrás
+    else if (progressDiff < -25) targetMax *= 0.96;
+  }
+
+  if (k.boostTimer > 0) {
+    k.boostTimer--;
+    targetMax += 2.4;
+    if (k.boostTimer % 3 === 0) {
+      spawnParticles(k.x - Math.cos(k.angle) * 20, k.y - Math.sin(k.angle) * 20, '#ff3366', 2);
+    }
+  } else if (k.slipstreamTimer > 45) {
+    targetMax += 1.15;
+  }
+
+  if (isOffroad && !k.fruit.offroadPass && k.boostTimer <= 0) {
+    targetMax *= 0.62;
+  }
+
+  // Aceleración automática constante
+  if (k.speed < targetMax) {
+    k.speed = Math.min(k.speed + k.fruit.accel, targetMax);
+  } else {
+    k.speed *= 0.97;
+  }
+
+  // Vector de movimiento con agarre del mapa
+  const forwardX = Math.cos(k.angle) * k.speed;
+  const forwardY = Math.sin(k.angle) * k.speed;
+  const grip = k.isDrifting ? currentMap.grip * 0.88 : currentMap.grip;
+
+  k.vx = k.vx * (1 - grip) + forwardX * grip;
+  k.vy = k.vy * (1 - grip) + forwardY * grip;
+
+  k.x += k.vx;
+  k.y += k.vy;
+
+  // Colisión con Cajas de Mejoras
+  itemBoxes.forEach(box => {
+    if (box.active && Math.hypot(box.x - k.x, box.y - k.y) < 28) {
+      box.active = false;
+      box.respawnTimer = 180;
+      if (!k.heldItem) {
+        k.heldItem = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+        k.itemCooldown = 45 + Math.floor(Math.random() * 55);
+        if (!k.isBot) updateItemUI();
+      }
+      spawnParticles(box.x, box.y, '#ffcc00', 10);
+    }
+  });
+
+  // Colisión con Obstáculos en Pista
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const obs = obstacles[i];
+    if (Math.hypot(obs.x - k.x, obs.y - k.y) < obs.radius + 16) {
+      if (obs.type === 'honey' && k.boostTimer <= 0) {
+        k.speed *= 0.45;
+      } else if (obs.type === 'ice') {
+        k.angle += (Math.random() - 0.5) * 0.25;
+      } else if (obs.type === 'blade' || obs.type === 'peel') {
+        if (k.shield) {
+          k.shield = false;
+          spawnParticles(k.x, k.y, '#00ffff', 15);
+        } else {
+          k.spinTimer = Math.round(38 / k.fruit.weight);
+          k.speed *= 0.3;
+          spawnParticles(k.x, k.y, '#ff3300', 14);
+        }
+        if (obs.type === 'peel') obstacles.splice(i, 1);
+      }
+    }
+  }
+}
+
+/* =========================================================
+   COLISIONES ENTRE KARTS Y PROYECTILES
+   ========================================================= */
+function handleKartCollisions() {
+  for (let i = 0; i < karts.length; i++) {
+    for (let j = i + 1; j < karts.length; j++) {
+      const a = karts[i];
+      const b = karts[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = 36;
+
+      if (dist > 0 && dist < minDist) {
+        const overlap = (minDist - dist) * 0.5;
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const totalWeight = a.fruit.weight + b.fruit.weight;
+        const ratioA = b.fruit.weight / totalWeight;
+        const ratioB = a.fruit.weight / totalWeight;
+
+        a.x -= nx * overlap * ratioA * 1.6;
+        a.y -= ny * overlap * ratioA * 1.6;
+        b.x += nx * overlap * ratioB * 1.6;
+        b.y += ny * overlap * ratioB * 1.6;
+      }
+    }
+  }
+}
+
+function updateWorldObjects() {
+  // Respawn de cajas de items
+  itemBoxes.forEach(b => {
+    if (!b.active) {
+      b.respawnTimer--;
+      if (b.respawnTimer <= 0) b.active = true;
+    }
+  });
+
+  // Movimiento de cuchillas giratorias
+  const time = performance.now() * 0.003;
+  obstacles.forEach(obs => {
+    if (obs.type === 'blade') {
+      const swing = Math.sin(time + obs.phase) * (currentMap.trackWidth * 0.38);
+      obs.x = obs.baseX + Math.cos(obs.perpAngle) * swing;
+      obs.y = obs.baseY + Math.sin(obs.perpAngle) * swing;
+    }
+  });
+
+  // Proyectiles (Chiles picantes)
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+
+    let hit = false;
+    for (const k of karts) {
+      if (k !== p.owner && !k.finished && Math.hypot(k.x - p.x, k.y - p.y) < 28) {
+        if (k.shield) {
+          k.shield = false;
+        } else {
+          k.spinTimer = Math.round(44 / k.fruit.weight);
+          k.speed = 1;
+        }
+        spawnParticles(k.x, k.y, '#ff3300', 18);
+        hit = true;
+        break;
+      }
+    }
+    if (hit || p.life <= 0) projectiles.splice(i, 1);
+  }
+
+  // Partículas
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const pt = particles[i];
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 1 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(ang) * spd,
+      vy: Math.sin(ang) * spd,
+      color,
+      life: 14 + Math.random() * 12
+    });
+  }
+}
+
+/* =========================================================
+   RENDERIZADO VISUAL (CANVAS 2D)
+   ========================================================= */
+function drawGame() {
+  ctx.fillStyle = currentMap.bgColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!playerKart) return;
+
+  ctx.save();
+  // Cámara centrada en el jugador
+  const camX = canvas.width / 2 - playerKart.x;
+  const camY = canvas.height / 2 - playerKart.y;
+  ctx.translate(camX, camY);
+
+  // 1. Dibujar Bordes y Asfalto del Circuito
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  trackPoints.forEach((pt, idx) => {
+    if (idx === 0) ctx.moveTo(pt.x, pt.y);
+    else ctx.lineTo(pt.x, pt.y);
+  });
+  ctx.closePath();
+
+  ctx.lineWidth = currentMap.trackWidth + 24;
+  ctx.strokeStyle = currentMap.borderColor;
+  ctx.stroke();
+
+  ctx.lineWidth = currentMap.trackWidth;
+  ctx.strokeStyle = currentMap.roadColor;
+  ctx.stroke();
+
+  // Línea central punteada
+  ctx.setLineDash([24, 28]);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Línea de Meta
+  const startPt = trackPoints[0];
+  const nextPt = trackPoints[1];
+  const finishAngle = Math.atan2(nextPt.y - startPt.y, nextPt.x - startPt.x);
+  ctx.save();
+  ctx.translate(startPt.x, startPt.y);
+  ctx.rotate(finishAngle);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-10, -currentMap.trackWidth / 2, 20, currentMap.trackWidth);
+  ctx.fillStyle = '#000000';
+  for (let y = -currentMap.trackWidth / 2; y < currentMap.trackWidth / 2; y += 24) {
+    ctx.fillRect(-10, y, 10, 12);
+    ctx.fillRect(0, y + 12, 10, 12);
+  }
+  ctx.restore();
+
+  // 2. Dibujar Obstáculos
+  obstacles.forEach(obs => {
+    ctx.save();
+    ctx.translate(obs.x, obs.y);
+    if (obs.type === 'honey') {
+      ctx.fillStyle = 'rgba(243, 156, 18, 0.82)';
+      ctx.beginPath();
+      ctx.arc(0, 0, obs.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🍯', 0, 0);
+    } else if (obs.type === 'ice') {
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.65)';
+      ctx.beginPath();
+      ctx.arc(0, 0, obs.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🧊', 0, 0);
+    } else if (obs.type === 'blade') {
+      ctx.rotate(performance.now() * 0.015);
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(0, 0, obs.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚙️', 0, 0);
+    } else if (obs.type === 'peel') {
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🍌', 0, 0);
+    }
+    ctx.restore();
+  });
+
+  // 3. Dibujar Cajas de Mejoras (Items)
+  itemBoxes.forEach(box => {
+    if (!box.active) return;
+    ctx.save();
+    ctx.translate(box.x, box.y);
+    ctx.rotate(performance.now() * 0.003);
+    ctx.fillStyle = 'rgba(255, 204, 0, 0.9)';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-14, -14, 28, 28);
+    ctx.strokeRect(-14, -14, 28, 28);
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', 0, 0);
+    ctx.restore();
+  });
+
+  // 4. Dibujar Proyectiles
+  projectiles.forEach(p => {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🌶️', 0, 0);
+    ctx.restore();
+  });
+
+  // 5. Dibujar Partículas
+  particles.forEach(pt => {
+    ctx.fillStyle = pt.color;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // 6. Dibujar Karts (Autos-Fruta)
+  karts.forEach(k => {
+    ctx.save();
+    ctx.translate(k.x, k.y);
+
+    // Etiqueta de nombre
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = k.isBot ? '#dddddd' : '#ffcc00';
+    ctx.textAlign = 'center';
+    ctx.fillText(k.name, 0, -28);
+
+    ctx.rotate(k.angle);
+
+    // Ruedas
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-16, -18, 10, 6);
+    ctx.fillRect(8, -18, 10, 6);
+    ctx.fillRect(-16, 12, 10, 6);
+    ctx.fillRect(8, 12, 10, 6);
+
+    // Chasis de Fruta
+    ctx.fillStyle = k.fruit.color;
+    ctx.strokeStyle = k.fruit.secondary;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(-20, -13, 40, 26, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // Icono de la Fruta sobre el capó
+    ctx.rotate(Math.PI / 2);
+    ctx.font = '22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(k.fruit.emoji, 0, 0);
+
+    ctx.restore();
+
+    // Escudo de Coco Activo
+    if (k.shield) {
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(k.x, k.y, 28, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  });
+
+  ctx.restore();
+}
+
+/* =========================================================
+   ACTUALIZACIÓN DE HUD Y FIN DE CARRERA
+   ========================================================= */
+function updateHUD() {
+  const sorted = [...karts].sort((a, b) => b.totalProgress - a.totalProgress);
+  const pos = sorted.indexOf(playerKart) + 1;
+  document.getElementById('posDisplay').textContent = `${pos}/${karts.length}`;
+  document.getElementById('lapDisplay').textContent = `Vuelta: ${Math.min(playerKart.lap, TOTAL_LAPS)} / ${TOTAL_LAPS}`;
+
+  const statusEl = document.getElementById('statusDisplay');
+  if (playerKart.boostTimer > 0) {
+    statusEl.textContent = '🔥 ¡TURBO ACTIVO!';
+  } else if (playerKart.slipstreamTimer > 45) {
+    statusEl.textContent = '💨 ¡REBUFO (SLIPSTREAM)!';
+  } else if (playerKart.isDrifting) {
+    statusEl.textContent = playerKart.driftCharge > 45 ? '⚡ MINI-TURBO LISTO' : '🛞 DERRAPANDO...';
+  } else {
+    statusEl.textContent = '';
+  }
+}
+
+function endRace() {
+  gameState = 'RESULTS';
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('touchControls').classList.add('hidden');
+
+  const sorted = [...karts].sort((a, b) => {
+    if (a.finished && b.finished) return finishOrder.indexOf(a) - finishOrder.indexOf(b);
+    return b.totalProgress - a.totalProgress;
+  });
+
+  const playerRank = sorted.indexOf(playerKart) + 1;
+  document.getElementById('resultTitle').textContent =
+    playerRank === 1 ? '🏆 ¡Victoria Magistral!' : `🏁 Terminaste en ${playerRank}° Lugar`;
+
+  const listEl = document.getElementById('resultsList');
+  listEl.innerHTML = '';
+  sorted.forEach((k, idx) => {
+    const row = document.createElement('div');
+    row.className = 'res-row';
+    row.innerHTML = `<span>#${idx + 1} ${k.fruit.emoji} ${k.name}</span><span>${idx === 0 ? '👑 Ganador' : 'Completado'}</span>`;
+    listEl.appendChild(row);
+  });
+
+  document.getElementById('resultOverlay').classList.remove('hidden');
+}
+
+/* =========================================================
+   BUCLE PRINCIPAL Y EVENTOS DE CONTROL
+   ========================================================= */
+function gameLoop() {
+  if (gameState === 'RACING') {
+    karts.forEach(k => updateKart(k));
+    handleKartCollisions();
+    updateWorldObjects();
+    drawGame();
+    updateHUD();
+  }
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+
+// Eventos Táctiles y Ratón para Móvil
+function bindHoldButton(btnId, keyName) {
+  const btn = document.getElementById(btnId);
+  const start = (e) => { e.preventDefault(); input[keyName] = true; btn.classList.add('active'); };
+  const end = (e) => { e.preventDefault(); input[keyName] = false; btn.classList.remove('active'); };
+  btn.addEventListener('touchstart', start, { passive: false });
+  btn.addEventListener('touchend', end, { passive: false });
+  btn.addEventListener('touchcancel', end, { passive: false });
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup', end);
+  btn.addEventListener('mouseleave', end);
+}
+
+bindHoldButton('btnLeft', 'left');
+bindHoldButton('btnRight', 'right');
+bindHoldButton('btnDrift', 'drift');
+
+const btnItem = document.getElementById('btnItem');
+btnItem.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (playerKart) useKartItem(playerKart);
+}, { passive: false });
+btnItem.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  if (playerKart) useKartItem(playerKart);
+});
+
+// Soporte para Teclado (Opcional)
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = true;
+  if (e.key === 'Shift' || e.key === ' ') input.drift = true;
+  if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
+    if (playerKart) useKartItem(playerKart);
+  }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = false;
+  if (e.key === 'Shift' || e.key === ' ') input.drift = false;
+});
+
+document.getElementById('startBtn').onclick = startRace;
+document.getElementById('restartBtn').onclick = () => {
+  document.getElementById('resultOverlay').classList.add('hidden');
+  document.getElementById('menuOverlay').classList.remove('hidden');
+  gameState = 'MENU';
+};
+</script>
+</body>
+</html>
